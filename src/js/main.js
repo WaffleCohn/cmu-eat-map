@@ -1,26 +1,66 @@
 // https://developers.google.com/maps/documentation/javascript/marker-clustering
+var map;
 window.initMap = function() {
-  var map = new google.maps.Map(document.getElementById('map'), {
+  map = new google.maps.Map(document.getElementById('map'), {
     zoom: 3,
     center: {lat: -28.024, lng: 140.887}
   });
+}
+
+// Loads locations on map
+window.loadMap = function(locations) {
+  console.log(locations);
+  var infoWindows = [];
 
   // Add some markers to the map.
   // Note: The code uses the JavaScript Array.prototype.map() method to
   // create an array of markers based on a given "locations" array.
   // The map() method here has nothing to do with the Google Maps API.
   var markers = locations.map(function(location, i) {
-    return new google.maps.Marker({
-      position: location.loc,
-      label: ""
+    var marker = new google.maps.Marker({
+      position: locationCoords[i].loc,
+      // label: "",
+      // map: map
     });
+    var infoWindow = new google.maps.InfoWindow({
+      content: `<div><h1>${location.name}</h1><p>${location.description}</p></div>`
+    });
+    infoWindows.push(infoWindow);
+    marker.addListener('click', function() {
+      // Close all open InfoWindows
+      for (var i = 0; i < infoWindows.length; i++)
+        infoWindows[i].close();
+      // Open InfoWindow for this marker
+      infoWindow.open(map, marker);
+    });
+    return marker;
+  });
+
+  // Closes all InfoWindows upon clicking map
+  google.maps.event.addListener(map, "click", function(event) {
+    for (var i = 0; i < infoWindows.length; i++ )
+         infoWindows[i].close();
   });
 
   // Add a marker clusterer to manage the markers.
   var markerCluster = new MarkerClusterer(map, markers,
       {imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m'});
 }
-var locations = [
+
+// Load location data from Dining API
+var xhr = new XMLHttpRequest();
+xhr.onreadystatechange = function()
+{
+  if (this.readyState == 4 && this.status == 200)
+  {
+    var data = JSON.parse(this.responseText);
+    window.loadMap(data.locations);
+  }
+};
+xhr.open("GET", "https://apis.scottylabs.org/dining/v1/locations", true);
+xhr.send();
+
+window.locationCoords = [
   {name: "AU BON PAIN AT SKIBO CAFÉ", loc: {lat: 40.444107, lng: -79.942206}},
   {name: "BREAKFAST EXPRESS", loc: {lat: 40.442522, lng: -79.939976}},
   {name: "CARNEGIE MELLON CAFÉ", loc: {lat: 40.442429, lng: -79.9397}},
@@ -61,7 +101,19 @@ var locations = [
   {name: "TAZZA D'ORO", loc: {lat: 40.443551, lng: -79.944798}},
   {name: "THE UNDERGROUND", loc: {lat: 40.44534, lng: -79.943204}},
   {name: "ZEBRA LOUNGE", loc: {lat: 40.441633, lng: -79.943015}}
-];
+].sort((a,b) => a.name.localeCompare(b.name));
+
+// checking for duplicate coordinates
+var locs = "";
+console.log(locationCoords);
+for (var loc of locationCoords)
+{
+  var coord = `(${loc.loc.lat},${loc.loc.lng})`;
+  if (~locs.indexOf(coord)) console.log(coord);
+  else {
+    locs += coord;
+  }
+}
 
 // Location Scraper
 // Run on https://apps.studentaffairs.cmu.edu/dining/conceptinfo/?page=listConcepts
